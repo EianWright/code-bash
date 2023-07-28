@@ -64,7 +64,160 @@ const getValidCoords = (currentX, currentY, currentBoard, xLength, yLength) => {
   return nextMove;
 };
 
+const nearestStop = (coord, board, xLength, yLength) => {
+  let dist = board.length;
+  let currX = coord.x;
+  let currDist = 0;
+  while (currX > 0) {
+    currX -= 1;
+    if (board[currX][coord.y]) {
+      break;
+    }
+    currDist += 1;
+  }
+  if (currDist < dist) {
+    dist = currDist;
+  }
+  currDist = 0;
+  currX = coord.x;
+  while (currX < xLength) {
+    currX += 1;
+    if (board[currX][coord.y]) {
+      break;
+    }
+    currDist += 1;
+  }
+  if (currDist < dist) {
+    dist = currDist;
+  }
+
+  let currY = coord.y;
+  currDist = 0;
+  while (currY > 0) {
+    currY -= 1;
+    if (board[coord.x][currY]) {
+      break;
+    }
+    currDist += 1;
+  }
+  if (currDist < dist) {
+    dist = currDist;
+  }
+  currDist = 0;
+  currY = coord.y;
+  currDist = 0;
+  while (currY < yLength) {
+    currY += 1;
+    if (board[coord.x][currY]) {
+      break;
+    }
+    currDist += 1;
+  }
+  if (currDist < dist) {
+    dist = currDist;
+  }
+  return dist;
+};
+
 const countMoves = (currentX, currentY, board, xLength, yLength) => {
+  /*const countMoves = (
+  currentX,
+  currentY,
+  board,
+  xLength,
+  yLength,
+  filler,
+  existing
+) => {
+  const currentBoard = board;
+  let count = 1;
+  let nextMove = {};
+  currentBoard[currentX][currentY] = filler;
+  let mostMoves = 0;
+  if (
+    anotherCheckCoords(
+      currentX - 1,
+      currentY,
+      currentBoard,
+      xLength,
+      yLength,
+      filler,
+      existing
+    )
+  ) {
+    let up = countMoves(currentX - 1, currentY, currentBoard, xLength, yLength);
+    if (up > mostMoves) {
+      mostMoves = up;
+    }
+  }
+  if (
+    anotherCheckCoords(
+      currentX + 1,
+      currentY,
+      currentBoard,
+      xLength,
+      yLength,
+      filler,
+      existing
+    )
+  ) {
+    let down = countMoves(
+      currentX + 1,
+      currentY,
+      currentBoard,
+      xLength,
+      yLength
+    );
+    if (down > mostMoves) {
+      mostMoves = down;
+    }
+  }
+  if (
+    anotherCheckCoords(
+      currentX,
+      currentY - 1,
+      currentBoard,
+      xLength,
+      yLength,
+      filler,
+      existing
+    )
+  ) {
+    let left = countMoves(
+      currentX,
+      currentY - 1,
+      currentBoard,
+      xLength,
+      yLength
+    );
+    if (left > mostMoves) {
+      mostMoves = left;
+    }
+  }
+  if (
+    anotherCheckCoords(
+      currentX,
+      currentY + 1,
+      currentBoard,
+      xLength,
+      yLength,
+      filler,
+      existing
+    )
+  ) {
+    let right = countMoves(
+      currentX,
+      currentY + 1,
+      currentBoard,
+      xLength,
+      yLength
+    );
+    if (right > mostMoves) {
+      mostMoves = right;
+    }
+  }
+
+  return mostMoves + 1;*/
   const currentBoard = [...board];
   let count = 1;
   let nextMove = {};
@@ -138,7 +291,75 @@ const weightCoords = (
     //console.log(numMoves);
     //console.log(coord);
   });
+  /*
+  let closestDist = xLength + yLength;
+  validCoords.forEach((coord) => {
+    const currDist = nearestStop(coord, board, xLength, yLength);
+    if (currDist < closestDist) {
+      closestDist = currDist;
+      closestCoord = coord;
+    }
+  });
+  return closestCoord;*/
+
   return closestCoord;
+};
+
+const checkPosition = (
+  currentX,
+  currentY,
+  otherPlayer,
+  board,
+  xLength,
+  yLength
+) => {
+  const xDiff = currentX - otherPlayer.x;
+  let controlX = 0;
+  if (xDiff > 0) {
+    controlX = xLength - currentX;
+  } else {
+    controlX = currentX;
+  }
+  const yDiff = currentY - otherPlayer.y;
+  let controlY = 0;
+  if (yDiff > 0) {
+    controlY = yLength - currentY;
+  } else {
+    controlY = currentY;
+  }
+
+  if (controlX > xLength / 2) {
+    let upValid = checkCoords(currentX, currentY + 1, board, xLength, yLength);
+    if (upValid) return { x: currentX, y: currentY + 1 };
+    let downValid = checkCoords(
+      currentX,
+      currentY - 1,
+      board,
+      xLength,
+      yLength
+    );
+    if (downValid) return { x: currentX, y: currentY - 1 };
+  }
+
+  if (controlY > yLength / 2) {
+    let leftValid = checkCoords(
+      currentX - 1,
+      currentY,
+      board,
+      xLength,
+      yLength
+    );
+    if (leftValid) return { x: currentX - 1, y: currentY };
+    let rightValid = checkCoords(
+      currentX + 1,
+      currentY,
+      board,
+      xLength,
+      yLength
+    );
+    if (rightValid) return { x: currentX + 1, y: currentY };
+  }
+  return null;
 };
 
 const playGame = async (gameId, playerId, startingData) => {
@@ -148,6 +369,7 @@ const playGame = async (gameId, playerId, startingData) => {
   const yLength = startingData.board[0].length;
   const xLength = startingData.board.length;
   let currentData = startingData;
+  let numMoves = 0;
   while (!currentData.winner) {
     let currentX = currentData.current_player.x;
     let currentY = currentData.current_player.y;
@@ -189,6 +411,21 @@ const playGame = async (gameId, playerId, startingData) => {
       nextMove = validCoords[randomIndex];
     }
 
+    /*let aggressiveMove = null;
+    if (numMoves < xLength) {
+      aggressiveMove = checkPosition(
+        currentX,
+        currentY,
+        otherPlayer,
+        currentBoard,
+        xLength,
+        yLength
+      );
+      if (aggressiveMove) {
+        nextMove = aggressiveMove;
+      }
+    }*/
+
     suggestedMove = weightCoords(
       validCoords,
       otherPlayer,
@@ -226,6 +463,7 @@ const playGame = async (gameId, playerId, startingData) => {
       break;
     }
     currentData = response.data[0];
+    numMoves += 1;
   }
   const final = await axios.get(getUrl, {}, { params: { gameId: gameId } });
   const finalData = final.data.games[0];
