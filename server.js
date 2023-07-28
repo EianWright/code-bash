@@ -228,7 +228,12 @@ const playGame = async (gameId, playerId, startingData) => {
     currentData = response.data[0];
   }
   const final = await axios.get(getUrl, {}, { params: { gameId: gameId } });
-  console.log(final.data.games);
+  const finalData = final.data.games[0];
+  if (finalData.winner === finalData.current_player.color) {
+    console.log("You won!");
+  } else {
+    console.log("You lost :(");
+  }
 };
 
 const joinAndPlayGame = async (gameId) => {
