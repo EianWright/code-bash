@@ -45,26 +45,100 @@ const checkCoords = (testX, testY, board, xLength, yLength) => {
   );
 };
 
-const getValidCoords = (currentX, currentY, board, xLength, yLength) => {
+const getValidCoords = (currentX, currentY, currentBoard, xLength, yLength) => {
   let nextMove = [];
 
   if (checkCoords(currentX - 1, currentY, currentBoard, xLength, yLength)) {
-    nextMove.append({ x: currentX - 1, y: currentY });
-  } else if (
-    checkCoords(currentX + 1, currentY, currentBoard, xLength, yLength)
-  ) {
-    nextMove.append({ x: currentX + 1, y: currentY });
-  } else if (
-    checkCoords(currentX, currentY - 1, currentBoard, xLength, yLength)
-  ) {
-    nextMove.append({ x: currentX, y: currentY - 1 });
-  } else if (
-    checkCoords(currentX, currentY + 1, currentBoard, xLength, yLength)
-  ) {
-    nextMove.append({ x: currentX, y: currentY + 1 });
+    nextMove.push({ x: currentX - 1, y: currentY });
   }
-  console.log(nextMove);
+  if (checkCoords(currentX + 1, currentY, currentBoard, xLength, yLength)) {
+    nextMove.push({ x: currentX + 1, y: currentY });
+  }
+  if (checkCoords(currentX, currentY - 1, currentBoard, xLength, yLength)) {
+    nextMove.push({ x: currentX, y: currentY - 1 });
+  }
+  if (checkCoords(currentX, currentY + 1, currentBoard, xLength, yLength)) {
+    nextMove.push({ x: currentX, y: currentY + 1 });
+  }
+
   return nextMove;
+};
+
+const countMoves = (currentX, currentY, board, xLength, yLength) => {
+  const currentBoard = [...board];
+  let count = 1;
+  let nextMove = {};
+  currentBoard[currentX][currentY] = "used";
+  while (true) {
+    if (checkCoords(currentX - 1, currentY, currentBoard, xLength, yLength)) {
+      nextMove.x = currentX - 1;
+      nextMove.y = currentY;
+    } else if (
+      checkCoords(currentX + 1, currentY, currentBoard, xLength, yLength)
+    ) {
+      nextMove.x = currentX + 1;
+      nextMove.y = currentY;
+    } else if (
+      checkCoords(currentX, currentY - 1, currentBoard, xLength, yLength)
+    ) {
+      nextMove.x = currentX;
+      nextMove.y = currentY - 1;
+    } else if (
+      checkCoords(currentX, currentY + 1, currentBoard, xLength, yLength)
+    ) {
+      nextMove.x = currentX;
+      nextMove.y = currentY + 1;
+    } else {
+      return count;
+    }
+    currentBoard[nextMove.x][nextMove.y] = "used";
+    currentX = nextMove.x;
+    currentY = nextMove.y;
+    count += 1;
+  }
+};
+
+const manhattanDist = (x1, x2, y1, y2) => {
+  return Math.abs(x1 - x2) + Math.abs(y1 - y2);
+};
+
+const weightCoords = (
+  validCoords,
+  otherPlayer,
+  length,
+  board,
+  xLength,
+  yLength
+) => {
+  const otherPlayerX = otherPlayer.x;
+  const otherPlayerY = otherPlayer.y;
+
+  let greatestMoves = 0;
+  let closestCoord = null;
+
+  /*validCoords.forEach((coord) => {
+    let currDist = manhattanDist(
+      coord.x,
+      otherPlayer.x,
+      coord.y,
+      otherPlayer.y
+    );
+    if (currDist < closestDist) {
+      closestDist = currDist;
+      closestCoord = coord;
+    }
+  });*/
+
+  validCoords.forEach((coord) => {
+    let numMoves = countMoves(coord.x, coord.y, board, xLength, yLength);
+    if (numMoves > greatestMoves) {
+      greatestMoves = numMoves;
+      closestCoord = coord;
+    }
+    //console.log(numMoves);
+    //console.log(coord);
+  });
+  return closestCoord;
 };
 
 const playGame = async (gameId, playerId, startingData) => {
@@ -78,6 +152,10 @@ const playGame = async (gameId, playerId, startingData) => {
     let currentX = currentData.current_player.x;
     let currentY = currentData.current_player.y;
     let currentBoard = currentData.board;
+    let otherPlayer = currentData.players.find(
+      (player) => player.color !== currentData.current_player.color
+    );
+    //console.log(otherPlayer);
 
     let nextMove = {};
 
@@ -99,6 +177,30 @@ const playGame = async (gameId, playerId, startingData) => {
       nextMove.y = currentY + 1;
     }
 
+    const validCoords = getValidCoords(
+      currentX,
+      currentY,
+      currentBoard,
+      xLength,
+      yLength
+    );
+    const randomIndex = Math.floor(Math.random() * validCoords.length);
+    if (validCoords.length > 0) {
+      nextMove = validCoords[randomIndex];
+    }
+
+    suggestedMove = weightCoords(
+      validCoords,
+      otherPlayer,
+      xLength,
+      currentBoard,
+      xLength,
+      yLength
+    );
+    if (suggestedMove) {
+      nextMove = suggestedMove;
+    }
+
     const response = await axios
       .post(
         moveUrl,
@@ -112,9 +214,13 @@ const playGame = async (gameId, playerId, startingData) => {
           },
         }
       )
-      .catch((e) => {
-        console.log(e);
-        return;
+      .catch(async (e) => {
+        console.log(e.data);
+        currentData = await axios.get(
+          getUrl,
+          {},
+          { params: { gameId: gameId } }
+        );
       });
     if (!response) {
       break;
